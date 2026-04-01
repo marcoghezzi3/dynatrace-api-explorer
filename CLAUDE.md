@@ -42,6 +42,23 @@ This is a local reverse-proxy web app for exploring Dynatrace APIs.
 
 Both classic APIs (`/api/v1/*`, `/api/v2/*`) and platform APIs (`/platform/*`) are supported — the proxy is path-agnostic.
 
+## Git workflow
+
+Commit after every meaningful code change so the user can roll back to any previous version:
+
+```bash
+git add <files modificati>
+git commit -m "descrizione breve della modifica"
+```
+
+Per tornare a una versione precedente:
+```bash
+git log --oneline          # lista dei commit
+git checkout <hash> -- .   # ripristina tutti i file a quel commit
+# oppure per un singolo file:
+git checkout <hash> -- static/index.html
+```
+
 ## Token security invariants
 
 - `session['token']` is write-only from the browser's perspective
