@@ -26,7 +26,9 @@ This is a local reverse-proxy web app for exploring Dynatrace APIs.
 - Werkzeug access logging is suppressed to avoid accidentally capturing token values from request bodies
 
 **`static/index.html`** — Single-file frontend (vanilla JS, no build step):
-- CSS Grid layout: sidebar (230px) + main area (request builder + response panel) + history bar
+- Layout: sidebar (256px) + main area (request builder + response panel) + history bar
+- Fonts loaded from Google Fonts: `DM Sans` (UI chrome) + `IBM Plex Mono` (code/paths/tokens)
+- Color palette: Dynatrace navy (`#070E1B`) background, teal `#00B9CC` as primary accent; CSS variables under `:root`
 - Connection panel: SaaS mode builds `https://{env-id}.live.dynatrace.com`; Managed mode accepts a full URL. The token input (`type="password"`) is cleared immediately after `POST /api/connect` returns
 - Request builder: method selector, path input, dynamic query-param table (`paramRows` array), JSON body editor (shown only for POST/PUT/PATCH)
 - Response panel: colour-coded HTTP status badge, response time from `X-Response-Time-Ms` header, inline JSON syntax highlighter (no CDN)
