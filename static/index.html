@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynatrace API Explorer</title>
+<style>
+  :root {
+    --dt-teal:    #00b4a0;
+    --dt-teal-d:  #008f7e;
+    --dt-dark:    #1a1f36;
+    --dt-panel:   #242840;
+    --dt-panel2:  #2d3352;
+    --dt-border:  #3a4060;
+    --dt-text:    #d4d8f0;
+    --dt-muted:   #7a82a8;
+    --dt-input:   #1e2338;
+    --s2xx: #22c55e; --s3xx: #eab308; --s4xx: #f97316; --s5xx: #ef4444;
+    --method-get: #3b82f6; --method-post: #22c55e; --method-put: #f59e0b;
+    --method-delete: #ef4444; --method-patch: #a855f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--dt-dark); color: var(--dt-text);
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--dt-panel); border-bottom: 1px solid var(--dt-border);
+    padding: 0 16px; height: 48px; display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0;
+  }
+  .logo { font-size: 18px; font-weight: 700; color: var(--dt-teal); letter-spacing: -0.3px; }
+  .logo span { color: var(--dt-text); font-weight: 400; }
+  .conn-badge {
+    margin-left: auto; padding: 3px 10px; border-radius: 12px; font-size: 12px;
+    font-weight: 600; background: #2d3352; color: var(--dt-muted); border: 1px solid var(--dt-border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .conn-badge.connected { background: #14291f; color: #22c55e; border-color: #22c55e44; }
+  .conn-badge.connected::before { content: ''; width: 7px; height: 7px; background: #22c55e; border-radius: 50%; display: inline-block; }
+  .conn-badge:not(.connected)::before { content: ''; width: 7px; height: 7px; background: var(--dt-muted); border-radius: 50%; display: inline-block; }
+  .conn-url { font-size: 11px; color: var(--dt-muted); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* LAYOUT */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* SIDEBAR */
+  aside {
+    width: 230px; flex-shrink: 0; background: var(--dt-panel);
+    border-right: 1px solid var(--dt-border); display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .sidebar-section { padding: 12px; border-bottom: 1px solid var(--dt-border); }
+  .sidebar-section h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--dt-muted); margin-bottom: 8px; }
+  label { display: block; font-size: 11px; color: var(--dt-muted); margin-bottom: 3px; margin-top: 8px; }
+  label:first-of-type { margin-top: 0; }
+  input, select, textarea {
+    width: 100%; background: var(--dt-input); border: 1px solid var(--dt-border);
+    color: var(--dt-text); border-radius: 5px; padding: 6px 8px; font-size: 13px;
+    outline: none; transition: border-color .15s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--dt-teal); }
+  select option { background: var(--dt-panel); }
+  .env-saas, .env-managed { display: none; }
+  .env-saas.active, .env-managed.active { display: block; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 7px 14px; border-radius: 5px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 600; transition: opacity .15s, transform .1s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--dt-teal); color: #fff; }
+  .btn-danger  { background: #3d1a1a; color: #ef4444; border: 1px solid #ef444433; }
+  .btn-ghost   { background: transparent; color: var(--dt-muted); border: 1px solid var(--dt-border); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-full { width: 100%; margin-top: 10px; }
+
+  /* QUICK ACCESS */
+  .quick-list { display: flex; flex-direction: column; gap: 2px; }
+  .quick-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 8px;
+    border-radius: 5px; cursor: pointer; font-size: 12px; color: var(--dt-muted);
+    transition: background .12s, color .12s;
+  }
+  .quick-item:hover { background: var(--dt-panel2); color: var(--dt-text); }
+  .quick-item .qi-icon { font-size: 13px; width: 18px; text-align: center; }
+  .quick-item .qi-method {
+    margin-left: auto; font-size: 10px; font-weight: 700; padding: 1px 5px;
+    border-radius: 3px; background: #1e2338;
+  }
+  .qi-method.GET { color: var(--method-get); }
+  .qi-method.POST { color: var(--method-post); }
+
+  /* MAIN */
+  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* REQUEST BUILDER */
+  .builder {
+    padding: 14px 16px; border-bottom: 1px solid var(--dt-border);
+    flex-shrink: 0;
+  }
+  .builder h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--dt-muted); margin-bottom: 12px; }
+
+  .req-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .method-select {
+    width: 110px; flex-shrink: 0; font-weight: 700;
+  }
+  .method-GET    { color: var(--method-get)    !important; }
+  .method-POST   { color: var(--method-post)   !important; }
+  .method-PUT    { color: var(--method-put)     !important; }
+  .method-DELETE { color: var(--method-delete)  !important; }
+  .method-PATCH  { color: var(--method-patch)   !important; }
+
+  .path-input { flex: 1; font-family: monospace; }
+
+  .tabs { display: flex; gap: 0; margin-bottom: 10px; border-bottom: 1px solid var(--dt-border); }
+  .tab {
+    padding: 6px 14px; font-size: 12px; cursor: pointer; color: var(--dt-muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .12s;
+  }
+  .tab.active { color: var(--dt-teal); border-bottom-color: var(--dt-teal); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* PARAMS TABLE */
+  .params-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .params-table th {
+    text-align: left; padding: 4px 6px; color: var(--dt-muted);
+    font-size: 10px; text-transform: uppercase; letter-spacing: .5px;
+  }
+  .params-table td { padding: 3px 4px; }
+  .params-table td input { padding: 4px 6px; font-size: 12px; font-family: monospace; }
+  .params-table .remove-btn {
+    background: none; border: none; color: var(--dt-muted); cursor: pointer;
+    font-size: 15px; padding: 0 4px; line-height: 1;
+  }
+  .params-table .remove-btn:hover { color: #ef4444; }
+  .add-param-btn { margin-top: 6px; }
+
+  /* BODY EDITOR */
+  .body-editor { position: relative; }
+  .body-editor textarea {
+    font-family: 'Courier New', monospace; font-size: 12px; min-height: 100px;
+    resize: vertical; line-height: 1.5;
+  }
+  .body-toolbar { display: flex; justify-content: flex-end; margin-top: 4px; }
+
+  /* RESPONSE */
+  .response {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    padding: 0;
+  }
+  .response-header {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    border-bottom: 1px solid var(--dt-border); flex-shrink: 0;
+    background: var(--dt-panel);
+  }
+  .response-header h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--dt-muted); }
+  .status-badge {
+    padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;
+    display: none;
+  }
+  .status-badge.s2xx { background: #14291f; color: var(--s2xx); display: inline-block; }
+  .status-badge.s3xx { background: #2a2510; color: var(--s3xx); display: inline-block; }
+  .status-badge.s4xx { background: #2a1810; color: var(--s4xx); display: inline-block; }
+  .status-badge.s5xx { background: #2a1010; color: var(--s5xx); display: inline-block; }
+  .time-chip { font-size: 11px; color: var(--dt-muted); }
+  .copy-btn { margin-left: auto; }
+  .truncated-warn { font-size: 11px; color: var(--s4xx); margin-left: 8px; }
+
+  .response-body {
+    flex: 1; overflow: auto; padding: 14px 16px;
+  }
+  .response-body pre {
+    font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .json-key    { color: #79b8ff; }
+  .json-string { color: #9ecbff; }
+  .json-number { color: #f8c555; }
+  .json-boolean{ color: #f97583; }
+  .json-null   { color: var(--dt-muted); }
+
+  .placeholder {
+    color: var(--dt-muted); font-size: 13px; text-align: center;
+    padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .placeholder .ph-icon { font-size: 36px; opacity: .4; }
+
+  .spinner { display: none; }
+  .spinner.active {
+    display: inline-block; width: 16px; height: 16px;
+    border: 2px solid var(--dt-border); border-top-color: var(--dt-teal);
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* HISTORY */
+  .history-bar {
+    background: var(--dt-panel); border-top: 1px solid var(--dt-border);
+    flex-shrink: 0;
+  }
+  .history-toggle {
+    padding: 6px 16px; font-size: 11px; color: var(--dt-muted); cursor: pointer;
+    display: flex; align-items: center; gap: 6px; user-select: none;
+  }
+  .history-toggle:hover { color: var(--dt-text); }
+  .history-list {
+    display: none; padding: 8px 16px; display: flex; gap: 6px;
+    overflow-x: auto; max-height: 0; overflow: hidden; transition: max-height .2s;
+  }
+  .history-list.open { max-height: 100px; overflow-x: auto; }
+  .history-entry {
+    flex-shrink: 0; background: var(--dt-input); border: 1px solid var(--dt-border);
+    border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 11px;
+    display: flex; flex-direction: column; gap: 2px; max-width: 200px;
+    transition: border-color .12s;
+  }
+  .history-entry:hover { border-color: var(--dt-teal); }
+  .history-entry .he-top { display: flex; align-items: center; gap: 5px; }
+  .history-entry .he-path { color: var(--dt-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+  .history-entry .he-time { color: var(--dt-muted); font-size: 10px; }
+  .method-badge {
+    font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: #1e2338;
+  }
+  .method-badge.GET    { color: var(--method-get); }
+  .method-badge.POST   { color: var(--method-post); }
+  .method-badge.PUT    { color: var(--method-put); }
+  .method-badge.DELETE { color: var(--method-delete); }
+  .method-badge.PATCH  { color: var(--method-patch); }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: #2a1010; color: #ef4444; border: 1px solid #ef444433;
+    padding: 10px 18px; border-radius: 8px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 100;
+    max-width: 500px; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+
+  @media (max-width: 768px) {
+    aside { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Dynatrace <span>API Explorer</span></div>
+  <div id="conn-badge" class="conn-badge">Non connesso</div>
+  <div id="conn-url" class="conn-url"></div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <!-- Connection panel -->
+    <div class="sidebar-section">
+      <h3>Connessione</h3>
+
+      <label>Tipo ambiente</label>
+      <select id="env-type" onchange="onEnvTypeChange()">
+        <option value="saas">SaaS</option>
+        <option value="managed">Managed</option>
+      </select>
+
+      <div class="env-saas active" id="saas-fields">
+        <label>Environment ID</label>
+        <input type="text" id="env-id" placeholder="es. abc12345" autocomplete="off">
+        <div style="font-size:10px;color:var(--dt-muted);margin-top:3px">→ https://{id}.live.dynatrace.com</div>
+      </div>
+
+      <div class="env-managed" id="managed-fields">
+        <label>URL base (con /e/{env-id})</label>
+        <input type="text" id="managed-url" placeholder="https://domain.com/e/env-id" autocomplete="off">
+      </div>
+
+      <label>API Token</label>
+      <input type="password" id="api-token" placeholder="dt0c01.****" autocomplete="off">
+
+      <button class="btn btn-primary btn-full" id="connect-btn" onclick="doConnect()">Connetti</button>
+      <button class="btn btn-danger btn-full" id="disconnect-btn" onclick="doDisconnect()" style="display:none;margin-top:5px">Disconnetti</button>
+    </div>
+
+    <!-- Quick access -->
+    <div class="sidebar-section" style="flex:1">
+      <h3>Accesso rapido</h3>
+      <div class="quick-list" id="quick-list"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <!-- REQUEST BUILDER -->
+    <div class="builder">
+      <h2>Request Builder</h2>
+
+      <div class="req-row">
+        <select id="method" class="method-select method-GET" onchange="onMethodChange()">
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="DELETE">DELETE</option>
+          <option value="PATCH">PATCH</option>
+        </select>
+        <input type="text" id="api-path" class="path-input" placeholder="/api/v2/problems" autocomplete="off" onkeydown="onPathKeydown(event)">
+        <button class="btn btn-primary" onclick="sendRequest()" id="send-btn">
+          <span class="spinner" id="spinner"></span>
+          Invia
+        </button>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('params')">Parametri</div>
+        <div class="tab" onclick="switchTab('body')" id="body-tab">Body</div>
+      </div>
+
+      <div class="tab-panel active" id="tab-params">
+        <table class="params-table">
+          <thead>
+            <tr><th>Chiave</th><th>Valore</th><th></th></tr>
+          </thead>
+          <tbody id="params-tbody"></tbody>
+        </table>
+        <button class="btn btn-ghost btn-sm add-param-btn" onclick="addParam()">+ Aggiungi parametro</button>
+      </div>
+
+      <div class="tab-panel" id="tab-body">
+        <div class="body-editor">
+          <textarea id="request-body" placeholder='{"key": "value"}' rows="5"></textarea>
+          <div class="body-toolbar">
+            <button class="btn btn-ghost btn-sm" onclick="formatBody()">Format JSON</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESPONSE -->
+    <div class="response">
+      <div class="response-header">
+        <h2>Risposta</h2>
+        <span class="status-badge" id="status-badge"></span>
+        <span class="time-chip" id="time-chip"></span>
+        <span class="truncated-warn" id="truncated-warn" style="display:none">⚠ Risposta troncata a 10MB</span>
+        <button class="btn btn-ghost btn-sm copy-btn" id="copy-btn" onclick="copyResponse()" style="display:none">Copia</button>
+      </div>
+      <div class="response-body" id="response-body">
+        <div class="placeholder">
+          <div class="ph-icon">⬡</div>
+          <div>Inserisci le credenziali di connessione e invia una richiesta</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- HISTORY BAR -->
+<div class="history-bar">
+  <div class="history-toggle" onclick="toggleHistory()">
+    <span id="history-arrow">▶</span> Cronologia (<span id="history-count">0</span>)
+    <button class="btn btn-ghost btn-sm" onclick="clearHistory(event)" style="margin-left:auto;font-size:10px;padding:2px 8px">Svuota</button>
+  </div>
+  <div class="history-list" id="history-list"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ---- STATE ----
+let paramRows = [];
+let paramIdCounter = 0;
+let rawResponseData = null;
+let historyOpen = false;
+
+const HISTORY_KEY = 'dt_api_v1_history';
+const MAX_HISTORY = 50;
+
+const QUICK_ACCESS = [
+  { label: 'Problems',      icon: '⚠',  path: '/api/v2/problems',          method: 'GET',
+    params: [{ key: 'pageSize', value: '50' }, { key: 'problemSelector', value: 'status("OPEN")' }] },
+  { label: 'Entities',      icon: '🖥',  path: '/api/v2/entities',           method: 'GET',
+    params: [{ key: 'pageSize', value: '50' }, { key: 'entitySelector', value: 'type("HOST")' }] },
+  { label: 'Metrics',       icon: '📈', path: '/api/v2/metrics',            method: 'GET', params: [] },
+  { label: 'Metric Query',  icon: '📊', path: '/api/v2/metrics/query',      method: 'GET',
+    params: [{ key: 'metricSelector', value: 'builtin:host.cpu.usage' }, { key: 'resolution', value: '1h' }] },
+  { label: 'SLOs',          icon: '🎯', path: '/api/v2/slo',               method: 'GET',
+    params: [{ key: 'pageSize', value: '25' }] },
+  { label: 'Logs',          icon: '📋', path: '/api/v2/logs/search',        method: 'GET',
+    params: [{ key: 'query', value: 'status:error' }, { key: 'limit', value: '100' }] },
+  { label: 'Events',        icon: '🔔', path: '/api/v2/events',             method: 'GET', params: [] },
+  { label: 'Audit Logs',    icon: '🔍', path: '/api/v2/auditlogs',          method: 'GET', params: [] },
+  { label: 'ActiveGates',   icon: '🔗', path: '/api/v2/activeGates',        method: 'GET', params: [] },
+  { label: 'Dashboards',    icon: '📁', path: '/api/config/v1/dashboards',  method: 'GET', params: [] },
+  { label: 'API Tokens',    icon: '🔑', path: '/api/v2/apiTokens',          method: 'GET', params: [] },
+  { label: 'Settings',      icon: '⚙',  path: '/api/v2/settings/objects',   method: 'GET',
+    params: [{ key: 'schemaIds', value: '' }] },
+  { label: 'Hosts',         icon: '💻', path: '/api/v2/entities',            method: 'GET',
+    params: [{ key: 'entitySelector', value: 'type("HOST")' }, { key: 'fields', value: '+properties' }] },
+  { label: 'Services',      icon: '⚡', path: '/api/v2/entities',            method: 'GET',
+    params: [{ key: 'entitySelector', value: 'type("SERVICE")' }] },
+];
+
+// ---- INIT ----
+document.addEventListener('DOMContentLoaded', () => {
+  renderQuickAccess();
+  renderParamTable();
+  renderHistory();
+  checkStatus();
+  updateMethodColor();
+});
+
+// ---- CONNECTION ----
+function onEnvTypeChange() {
+  const type = document.getElementById('env-type').value;
+  document.getElementById('saas-fields').classList.toggle('active', type === 'saas');
+  document.getElementById('managed-fields').classList.toggle('active', type === 'managed');
+}
+
+async function doConnect() {
+  const envType = document.getElementById('env-type').value;
+  const token = document.getElementById('api-token').value.trim();
+  let baseUrl;
+
+  if (envType === 'saas') {
+    const envId = document.getElementById('env-id').value.trim();
+    if (!envId) { showToast('Inserisci l\'Environment ID'); return; }
+    baseUrl = `https://${envId}.live.dynatrace.com`;
+  } else {
+    baseUrl = document.getElementById('managed-url').value.trim();
+    if (!baseUrl) { showToast('Inserisci l\'URL dell\'ambiente Managed'); return; }
+  }
+  if (!token) { showToast('Inserisci il token API'); return; }
+
+  const btn = document.getElementById('connect-btn');
+  btn.disabled = true;
+  btn.textContent = 'Connessione...';
+
+  try {
+    const resp = await fetch('/api/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_url: baseUrl, token }),
+    });
+    // Clear token immediately after sending
+    document.getElementById('api-token').value = '';
+
+    const data = await resp.json();
+    if (resp.ok) {
+      setConnectedUI(true, baseUrl);
+    } else {
+      showToast(data.error || 'Errore di connessione');
+    }
+  } catch (e) {
+    showToast('Errore di rete: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Connetti';
+  }
+}
+
+async function doDisconnect() {
+  await fetch('/api/disconnect', { method: 'POST' });
+  setConnectedUI(false, null);
+}
+
+async function checkStatus() {
+  try {
+    const resp = await fetch('/api/status');
+    const data = await resp.json();
+    setConnectedUI(data.connected, data.base_url);
+  } catch (e) { /* server not ready */ }
+}
+
+function setConnectedUI(connected, baseUrl) {
+  const badge = document.getElementById('conn-badge');
+  const urlEl = document.getElementById('conn-url');
+  const connectBtn = document.getElementById('connect-btn');
+  const disconnectBtn = document.getElementById('disconnect-btn');
+
+  if (connected) {
+    badge.className = 'conn-badge connected';
+    badge.textContent = 'Connesso';
+    urlEl.textContent = baseUrl || '';
+    connectBtn.style.display = 'none';
+    disconnectBtn.style.display = 'block';
+  } else {
+    badge.className = 'conn-badge';
+    badge.textContent = 'Non connesso';
+    urlEl.textContent = '';
+    connectBtn.style.display = 'block';
+    disconnectBtn.style.display = 'none';
+  }
+}
+
+// ---- PARAMS ----
+function addParam(key = '', value = '') {
+  paramRows.push({ id: ++paramIdCounter, key, value });
+  renderParamTable();
+}
+
+function removeParam(id) {
+  paramRows = paramRows.filter(r => r.id !== id);
+  renderParamTable();
+}
+
+function updateParam(id, field, val) {
+  const row = paramRows.find(r => r.id === id);
+  if (row) row[field] = val;
+}
+
+function renderParamTable() {
+  const tbody = document.getElementById('params-tbody');
+  tbody.innerHTML = paramRows.map(row => `
+    <tr>
+      <td><input type="text" placeholder="chiave" value="${esc(row.key)}"
+           oninput="updateParam(${row.id},'key',this.value)"></td>
+      <td><input type="text" placeholder="valore" value="${esc(row.value)}"
+           oninput="updateParam(${row.id},'value',this.value)"></td>
+      <td><button class="remove-btn" onclick="removeParam(${row.id})" title="Rimuovi">×</button></td>
+    </tr>`).join('');
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ---- METHOD & TABS ----
+function onMethodChange() {
+  updateMethodColor();
+  const method = document.getElementById('method').value;
+  const bodyTab = document.getElementById('body-tab');
+  if (['POST', 'PUT', 'PATCH'].includes(method)) {
+    bodyTab.style.opacity = '1'; bodyTab.style.pointerEvents = 'auto';
+  } else {
+    bodyTab.style.opacity = '.4'; bodyTab.style.pointerEvents = 'none';
+    switchTab('params');
+  }
+}
+
+function updateMethodColor() {
+  const sel = document.getElementById('method');
+  sel.className = 'method-select method-' + sel.value;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['params', 'body'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.getElementById('tab-params').classList.toggle('active', name === 'params');
+  document.getElementById('tab-body').classList.toggle('active', name === 'body');
+}
+
+function onPathKeydown(e) {
+  if (e.key === 'Enter') sendRequest();
+}
+
+// ---- SEND REQUEST ----
+async function sendRequest() {
+  const method = document.getElementById('method').value;
+  let apiPath = document.getElementById('api-path').value.trim();
+  if (!apiPath) { showToast('Inserisci il path API (es. /api/v2/problems)'); return; }
+  if (!apiPath.startsWith('/')) apiPath = '/' + apiPath;
+
+  const qs = new URLSearchParams({ path: apiPath });
+  paramRows.filter(r => r.key.trim()).forEach(r => qs.append(r.key.trim(), r.value));
+
+  const opts = { method, headers: {} };
+  if (['POST', 'PUT', 'PATCH'].includes(method)) {
+    const bodyText = document.getElementById('request-body').value.trim();
+    if (bodyText) {
+      try { JSON.parse(bodyText); }
+      catch (e) { showToast('JSON non valido nel body: ' + e.message); return; }
+      opts.body = bodyText;
+      opts.headers['Content-Type'] = 'application/json';
+    }
+  }
+
+  const spinner = document.getElementById('spinner');
+  const sendBtn = document.getElementById('send-btn');
+  spinner.classList.add('active');
+  sendBtn.disabled = true;
+
+  try {
+    const resp = await fetch('/api/proxy?' + qs.toString(), opts);
+    const elapsed = resp.headers.get('X-Response-Time-Ms') || '?';
+    const truncated = resp.headers.get('X-Response-Truncated') === 'true';
+    const contentType = resp.headers.get('Content-Type') || '';
+
+    let body;
+    const text = await resp.text();
+    try { body = JSON.parse(text); }
+    catch { body = text; }
+
+    displayResponse(resp.status, elapsed, body, truncated);
+    saveToHistory({ method, apiPath, params: paramRows.filter(r => r.key), status: resp.status });
+
+  } catch (e) {
+    showToast('Errore di rete: ' + e.message);
+  } finally {
+    spinner.classList.remove('active');
+    sendBtn.disabled = false;
+  }
+}
+
+// ---- DISPLAY RESPONSE ----
+function displayResponse(status, elapsed, body, truncated) {
+  const badge = document.getElementById('status-badge');
+  const timeChip = document.getElementById('time-chip');
+  const truncWarn = document.getElementById('truncated-warn');
+  const copyBtn = document.getElementById('copy-btn');
+  const responseBody = document.getElementById('response-body');
+
+  // Status badge
+  badge.textContent = status;
+  badge.className = 'status-badge ' + (
+    status >= 500 ? 's5xx' : status >= 400 ? 's4xx' : status >= 300 ? 's3xx' : 's2xx'
+  );
+  timeChip.textContent = elapsed + ' ms';
+  truncWarn.style.display = truncated ? 'inline' : 'none';
+  copyBtn.style.display = 'inline-flex';
+
+  if (typeof body === 'object' && body !== null) {
+    rawResponseData = JSON.stringify(body, null, 2);
+    responseBody.innerHTML = '<pre>' + syntaxHighlight(rawResponseData) + '</pre>';
+  } else {
+    rawResponseData = String(body);
+    responseBody.innerHTML = '<pre>' + esc(rawResponseData) + '</pre>';
+  }
+}
+
+function syntaxHighlight(json) {
+  return json.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    match => {
+      let cls = 'json-number';
+      if (/^"/.test(match)) cls = /:$/.test(match) ? 'json-key' : 'json-string';
+      else if (/true|false/.test(match)) cls = 'json-boolean';
+      else if (/null/.test(match)) cls = 'json-null';
+      return `<span class="${cls}">${esc(match)}</span>`;
+    }
+  );
+}
+
+function formatBody() {
+  const ta = document.getElementById('request-body');
+  try {
+    ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
+  } catch (e) {
+    showToast('JSON non valido: ' + e.message);
+  }
+}
+
+function copyResponse() {
+  if (!rawResponseData) return;
+  navigator.clipboard.writeText(rawResponseData).then(() => {
+    showToast('Copiato negli appunti', 'success');
+  }).catch(() => {
+    showToast('Copia non riuscita');
+  });
+}
+
+// ---- QUICK ACCESS ----
+function renderQuickAccess() {
+  const list = document.getElementById('quick-list');
+  list.innerHTML = QUICK_ACCESS.map((item, i) => `
+    <div class="quick-item" onclick="loadQuickAccess(${i})">
+      <span class="qi-icon">${item.icon}</span>
+      <span>${item.label}</span>
+      <span class="qi-method ${item.method}">${item.method}</span>
+    </div>`).join('');
+}
+
+function loadQuickAccess(i) {
+  const item = QUICK_ACCESS[i];
+  document.getElementById('method').value = item.method;
+  updateMethodColor();
+  document.getElementById('api-path').value = item.path;
+  paramRows = item.params.map(p => ({ id: ++paramIdCounter, key: p.key, value: p.value }));
+  renderParamTable();
+  onMethodChange();
+}
+
+// ---- HISTORY ----
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveToHistory(entry) {
+  let history = loadHistory();
+  history.unshift({ ...entry, ts: Date.now(), id: Date.now() });
+  history = history.slice(0, MAX_HISTORY);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  document.getElementById('history-count').textContent = history.length;
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  const history = loadHistory();
+  document.getElementById('history-count').textContent = history.length;
+
+  if (!history.length) {
+    list.innerHTML = '<span style="color:var(--dt-muted);font-size:12px;align-self:center">Nessuna richiesta ancora</span>';
+    return;
+  }
+
+  list.innerHTML = history.map(e => `
+    <div class="history-entry" onclick="replayHistory(${e.id})" title="${esc(e.apiPath)}">
+      <div class="he-top">
+        <span class="method-badge ${e.method}">${e.method}</span>
+        <span class="status-badge s${Math.floor(e.status/100)}xx" style="font-size:10px;padding:1px 5px">${e.status}</span>
+      </div>
+      <div class="he-path">${esc(e.apiPath)}</div>
+      <div class="he-time">${relativeTime(e.ts)}</div>
+    </div>`).join('');
+}
+
+function replayHistory(id) {
+  const history = loadHistory();
+  const entry = history.find(e => e.id === id);
+  if (!entry) return;
+  document.getElementById('method').value = entry.method;
+  updateMethodColor();
+  document.getElementById('api-path').value = entry.apiPath;
+  paramRows = (entry.params || []).map(p => ({ id: ++paramIdCounter, key: p.key, value: p.value }));
+  renderParamTable();
+  onMethodChange();
+}
+
+function clearHistory(e) {
+  e.stopPropagation();
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+}
+
+function toggleHistory() {
+  historyOpen = !historyOpen;
+  document.getElementById('history-list').classList.toggle('open', historyOpen);
+  document.getElementById('history-arrow').textContent = historyOpen ? '▼' : '▶';
+}
+
+function relativeTime(ts) {
+  const diff = Date.now() - ts;
+  if (diff < 60000) return 'ora';
+  if (diff < 3600000) return Math.floor(diff / 60000) + ' min fa';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + ' ore fa';
+  return Math.floor(diff / 86400000) + ' giorni fa';
+}
+
+// ---- TOAST ----
+let toastTimer;
+function showToast(msg, type = 'error') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type === 'success' ? '#142914' : '#2a1010';
+  t.style.color = type === 'success' ? '#22c55e' : '#ef4444';
+  t.style.borderColor = type === 'success' ? '#22c55e33' : '#ef444433';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
