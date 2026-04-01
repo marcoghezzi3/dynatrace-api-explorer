@@ -61,6 +61,8 @@ git checkout <hash> -- .   # ripristina tutti i file a quel commit
 git checkout <hash> -- static/index.html
 ```
 
+**Important:** When generating a new file (not editing existing), always ask for user confirmation before proposing `git add`/`commit`. Show the content first, wait for approval, then commit.
+
 ## Token security invariants
 
 - `session['token']` is write-only from the browser's perspective
