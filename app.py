@@ -4,6 +4,8 @@ import logging
 
 from flask import Flask, request, jsonify, session
 import requests as req_lib
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 app.secret_key = os.urandom(32)
@@ -42,7 +44,7 @@ def connect():
             headers=headers,
             params={'pageSize': '1'},
             timeout=10,
-            verify=True,
+            verify=False,
         )
         if resp.status_code == 401:
             return jsonify({'error': 'Token non valido (401 Unauthorized)'}), 401
@@ -117,7 +119,7 @@ def proxy():
             params=query_params,
             data=body,
             timeout=30,
-            verify=True,
+            verify=False,
             stream=False,
             allow_redirects=True,
         )
