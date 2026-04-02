@@ -812,6 +812,139 @@
   @media (max-width: 768px) {
     aside { display: none; }
   }
+
+  /* ═══════════════════════════════════════
+     VIEW NAV
+  ═══════════════════════════════════════ */
+  .view-nav {
+    display: flex;
+    gap: 4px;
+    padding: 10px 20px 0;
+    border-bottom: 1px solid var(--dt-border);
+    background: var(--dt-surface);
+    flex-shrink: 0;
+  }
+  .view-nav-btn {
+    padding: 7px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    color: var(--dt-muted);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color var(--tr), border-color var(--tr);
+    letter-spacing: 0.2px;
+  }
+  .view-nav-btn:hover { color: var(--dt-text-sec); }
+  .view-nav-btn.active {
+    color: var(--dt-teal);
+    border-bottom-color: var(--dt-teal);
+  }
+
+  /* ═══════════════════════════════════════
+     OVERVIEW PANEL
+  ═══════════════════════════════════════ */
+  #view-overview {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+  }
+  #view-overview::-webkit-scrollbar { width: 6px; }
+  #view-overview::-webkit-scrollbar-track { background: transparent; }
+  #view-overview::-webkit-scrollbar-thumb {
+    background: var(--dt-border-hi);
+    border-radius: 4px;
+  }
+  .ov-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+    font-size: 12px;
+    color: var(--dt-muted);
+  }
+  .ov-last-updated { font-family: var(--font-mono); }
+  .ov-section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.3px;
+    color: var(--dt-muted);
+    font-weight: 600;
+    margin-bottom: 12px;
+    margin-top: 20px;
+  }
+  .ov-section-label:first-of-type { margin-top: 0; }
+  .overview-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 8px;
+  }
+  .ov-card {
+    background: var(--dt-panel);
+    border: 1px solid var(--dt-border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    min-width: 128px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color var(--tr), box-shadow var(--tr);
+    position: relative;
+    overflow: hidden;
+  }
+  .ov-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--dt-teal);
+    opacity: 0.6;
+  }
+  .ov-card.danger::before { background: var(--s-5xx); }
+  .ov-card.safe::before   { background: var(--s-2xx); }
+  .ov-card:hover {
+    border-color: var(--dt-border-hi);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .ov-icon { font-size: 18px; line-height: 1; }
+  .ov-count {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--dt-teal);
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+  .ov-card.danger .ov-count { color: var(--s-5xx); }
+  .ov-card.safe   .ov-count { color: var(--s-2xx); }
+  .ov-label {
+    font-size: 11px;
+    color: var(--dt-text-sec);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .ov-loading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 32px 0;
+    color: var(--dt-muted);
+    font-size: 13px;
+  }
+  .ov-spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--dt-border-hi);
+    border-top-color: var(--dt-teal);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
 </style>
 </head>
 <body>
@@ -867,66 +1000,102 @@
 
   <!-- MAIN -->
   <main>
-    <!-- REQUEST BUILDER -->
-    <div class="builder">
-      <div class="builder-title">Request Builder</div>
 
-      <div class="req-row">
-        <select id="method" class="method-select method-GET" onchange="onMethodChange()">
-          <option value="GET">GET</option>
-          <option value="POST">POST</option>
-          <option value="PUT">PUT</option>
-          <option value="DELETE">DELETE</option>
-          <option value="PATCH">PATCH</option>
-        </select>
-        <input type="text" id="api-path" class="path-input" placeholder="/api/v2/problems" autocomplete="off" onkeydown="onPathKeydown(event)">
-        <button class="btn btn-primary send-btn" onclick="sendRequest()" id="send-btn">
-          <span class="spinner" id="spinner"></span>
-          Invia
-        </button>
-      </div>
+    <!-- VIEW NAV -->
+    <div class="view-nav">
+      <button class="view-nav-btn active" onclick="showView('explorer')">Explorer</button>
+      <button class="view-nav-btn" onclick="showView('overview')">Overview</button>
+    </div>
 
-      <div class="tabs">
-        <div class="tab active" onclick="switchTab('params')">Parametri</div>
-        <div class="tab" onclick="switchTab('body')" id="body-tab">Body</div>
-      </div>
+    <!-- EXPLORER VIEW -->
+    <div id="view-explorer" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
 
-      <div class="tab-panel active" id="tab-params">
-        <table class="params-table">
-          <thead>
-            <tr><th>Chiave</th><th>Valore</th><th></th></tr>
-          </thead>
-          <tbody id="params-tbody"></tbody>
-        </table>
-        <button class="btn btn-ghost btn-sm add-param-btn" onclick="addParam()">+ Aggiungi parametro</button>
-      </div>
+      <!-- REQUEST BUILDER -->
+      <div class="builder">
+        <div class="builder-title">Request Builder</div>
 
-      <div class="tab-panel" id="tab-body">
-        <div class="body-editor">
-          <textarea id="request-body" placeholder='{"key": "value"}' rows="5"></textarea>
-          <div class="body-toolbar">
-            <button class="btn btn-ghost btn-sm" onclick="formatBody()">Format JSON</button>
+        <div class="req-row">
+          <select id="method" class="method-select method-GET" onchange="onMethodChange()">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+            <option value="PATCH">PATCH</option>
+          </select>
+          <input type="text" id="api-path" class="path-input" placeholder="/api/v2/problems" autocomplete="off" onkeydown="onPathKeydown(event)">
+          <button class="btn btn-primary send-btn" onclick="sendRequest()" id="send-btn">
+            <span class="spinner" id="spinner"></span>
+            Invia
+          </button>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('params')">Parametri</div>
+          <div class="tab" onclick="switchTab('body')" id="body-tab">Body</div>
+        </div>
+
+        <div class="tab-panel active" id="tab-params">
+          <table class="params-table">
+            <thead>
+              <tr><th>Chiave</th><th>Valore</th><th></th></tr>
+            </thead>
+            <tbody id="params-tbody"></tbody>
+          </table>
+          <button class="btn btn-ghost btn-sm add-param-btn" onclick="addParam()">+ Aggiungi parametro</button>
+        </div>
+
+        <div class="tab-panel" id="tab-body">
+          <div class="body-editor">
+            <textarea id="request-body" placeholder='{"key": "value"}' rows="5"></textarea>
+            <div class="body-toolbar">
+              <button class="btn btn-ghost btn-sm" onclick="formatBody()">Format JSON</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- RESPONSE -->
-    <div class="response">
-      <div class="response-header">
-        <span class="response-title">Risposta</span>
-        <span class="status-badge" id="status-badge"></span>
-        <span class="time-chip" id="time-chip"></span>
-        <span class="truncated-warn" id="truncated-warn" style="display:none">⚠ Risposta troncata a 10 MB</span>
-        <button class="btn btn-ghost btn-sm copy-btn" id="copy-btn" onclick="copyResponse()" style="display:none">Copia</button>
-      </div>
-      <div class="response-body" id="response-body">
-        <div class="placeholder">
-          <div class="ph-icon">⬡</div>
-          <div class="ph-text">Inserisci le credenziali di connessione e invia una richiesta per vedere la risposta qui.</div>
+      <!-- RESPONSE -->
+      <div class="response">
+        <div class="response-header">
+          <span class="response-title">Risposta</span>
+          <span class="status-badge" id="status-badge"></span>
+          <span class="time-chip" id="time-chip"></span>
+          <span class="truncated-warn" id="truncated-warn" style="display:none">⚠ Risposta troncata a 10 MB</span>
+          <button class="btn btn-ghost btn-sm copy-btn" id="copy-btn" onclick="copyResponse()" style="display:none">Copia</button>
+        </div>
+        <div class="response-body" id="response-body">
+          <div class="placeholder">
+            <div class="ph-icon">⬡</div>
+            <div class="ph-text">Inserisci le credenziali di connessione e invia una richiesta per vedere la risposta qui.</div>
+          </div>
         </div>
       </div>
-    </div>
+
+    </div><!-- /view-explorer -->
+
+    <!-- OVERVIEW VIEW -->
+    <div id="view-overview" style="display:none">
+
+      <div class="ov-meta">
+        <span class="ov-last-updated" id="ov-last-updated">—</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadOverview(true)">↻ Aggiorna</button>
+      </div>
+
+      <div id="ov-loading" class="ov-loading" style="display:none">
+        <div class="ov-spinner"></div>
+        Caricamento dati ambiente...
+      </div>
+
+      <div id="ov-content" style="display:none">
+        <div class="ov-section-label">Environment</div>
+        <div class="overview-grid" id="ov-grid-env"></div>
+
+        <div class="ov-section-label">Artifacts</div>
+        <div class="overview-grid" id="ov-grid-artifacts"></div>
+      </div>
+
+    </div><!-- /view-overview -->
+
   </main>
 </div>
 
@@ -952,6 +1121,16 @@ let historyOpen = false;
 
 const HISTORY_KEY = 'dt_api_v1_history';
 const MAX_HISTORY = 50;
+
+const OVERVIEW_TTL   = 5 * 60 * 1000; // 5 minuti
+const OVERVIEW_CARDS = [
+  { key: 'problems_open', icon: '⚠',  label: 'Problems',   group: 'env',       danger: true  },
+  { key: 'hosts',         icon: '💻', label: 'Hosts',      group: 'env',       danger: false },
+  { key: 'services',      icon: '⚡', label: 'Services',   group: 'env',       danger: false },
+  { key: 'applications',  icon: '🌐', label: 'Apps',       group: 'env',       danger: false },
+  { key: 'dashboards',    icon: '📁', label: 'Dashboards', group: 'artifacts', danger: false },
+  { key: 'slos',          icon: '🎯', label: 'SLOs',       group: 'artifacts', danger: false },
+];
 
 const QUICK_ACCESS = [
   { label: 'Problems',      icon: '⚠',  path: '/api/v2/problems',          method: 'GET',
@@ -1323,6 +1502,198 @@ function relativeTime(ts) {
   if (diff < 3600000) return Math.floor(diff / 60000) + ' min fa';
   if (diff < 86400000) return Math.floor(diff / 3600000) + ' ore fa';
   return Math.floor(diff / 86400000) + ' giorni fa';
+}
+
+// ---- OVERVIEW ----
+
+function openOverviewDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('dt_explorer_db', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('overview_snapshots')) {
+        const store = db.createObjectStore('overview_snapshots', { autoIncrement: true });
+        store.createIndex('baseUrl', 'baseUrl', { unique: false });
+        store.createIndex('ts',      'ts',      { unique: false });
+      }
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+function saveOverviewSnapshot(db, baseUrl, data) {
+  return new Promise((resolve, reject) => {
+    const tx    = db.transaction('overview_snapshots', 'readwrite');
+    const store = tx.objectStore('overview_snapshots');
+    store.add({ ts: Date.now(), baseUrl, data });
+    tx.oncomplete = () => {
+      // Prune: keep max 200 records per baseUrl
+      const tx2    = db.transaction('overview_snapshots', 'readwrite');
+      const store2 = tx2.objectStore('overview_snapshots');
+      const req    = store2.index('baseUrl').getAll(IDBKeyRange.only(baseUrl));
+      req.onsuccess = e => {
+        const records = e.target.result;
+        if (records.length > 200) {
+          const excess = records.length - 200;
+          let deleted  = 0;
+          const cur = store2.index('baseUrl').openCursor(IDBKeyRange.only(baseUrl));
+          cur.onsuccess = ce => {
+            const cursor = ce.target.result;
+            if (cursor && deleted < excess) {
+              cursor.delete();
+              deleted++;
+              cursor.continue();
+            }
+          };
+        }
+      };
+      tx2.oncomplete = () => resolve();
+    };
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+function getLatestSnapshot(db, baseUrl) {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction('overview_snapshots', 'readonly');
+    const req = tx.objectStore('overview_snapshots').index('baseUrl').getAll(IDBKeyRange.only(baseUrl));
+    req.onsuccess = e => {
+      const records = e.target.result;
+      if (!records.length) { resolve(null); return; }
+      resolve(records.reduce((a, b) => (b.ts > a.ts ? b : a)));
+    };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+// ---- VIEW SWITCHING ----
+
+function showView(name) {
+  const explorer = document.getElementById('view-explorer');
+  const overview = document.getElementById('view-overview');
+  const btns     = document.querySelectorAll('.view-nav-btn');
+  const isOv     = name === 'overview';
+
+  explorer.style.display = isOv ? 'none'  : 'flex';
+  overview.style.display = isOv ? 'block' : 'none';
+  btns[0].classList.toggle('active', !isOv);
+  btns[1].classList.toggle('active',  isOv);
+
+  if (isOv) loadOverview();
+}
+
+async function loadOverview(forceRefresh = false) {
+  const baseUrl = document.getElementById('conn-url').textContent.trim();
+  if (!baseUrl) {
+    document.getElementById('ov-last-updated').textContent = 'Non connesso';
+    return;
+  }
+
+  if (!forceRefresh) {
+    try {
+      const db     = await openOverviewDB();
+      const latest = await getLatestSnapshot(db, baseUrl);
+      if (latest && (Date.now() - latest.ts) < OVERVIEW_TTL) {
+        renderOverviewCards(latest.data);
+        updateOverviewTimestamp(latest.ts);
+        return;
+      }
+    } catch { /* fallback to fetch */ }
+  }
+
+  fetchOverviewData(baseUrl);
+}
+
+async function fetchOverviewData(baseUrl) {
+  document.getElementById('ov-loading').style.display  = 'flex';
+  document.getElementById('ov-content').style.display  = 'none';
+  document.getElementById('ov-last-updated').textContent = 'Caricamento...';
+
+  const data = {
+    problems_open: null,
+    hosts:         null,
+    services:      null,
+    applications:  null,
+    dashboards:    null,
+    slos:          null,
+  };
+
+  try {
+    const r = await proxyFetch('/api/v2/problems', { pageSize: '1', problemSelector: 'status("OPEN")' });
+    data.problems_open = r.totalCount ?? 0;
+  } catch { data.problems_open = 'N/A'; }
+
+  try {
+    const r = await proxyFetch('/api/v2/entities', { entitySelector: 'type("HOST")', pageSize: '1' });
+    data.hosts = r.totalCount ?? 0;
+  } catch { data.hosts = 'N/A'; }
+
+  try {
+    const r = await proxyFetch('/api/v2/entities', { entitySelector: 'type("SERVICE")', pageSize: '1' });
+    data.services = r.totalCount ?? 0;
+  } catch { data.services = 'N/A'; }
+
+  try {
+    const r = await proxyFetch('/api/v2/entities', { entitySelector: 'type("APPLICATION")', pageSize: '1' });
+    data.applications = r.totalCount ?? 0;
+  } catch { data.applications = 'N/A'; }
+
+  try {
+    const r = await proxyFetch('/api/config/v1/dashboards', {});
+    data.dashboards = Array.isArray(r.dashboards) ? r.dashboards.length : 0;
+  } catch { data.dashboards = 'N/A'; }
+
+  try {
+    const r = await proxyFetch('/api/v2/slo', { pageSize: '1' });
+    data.slos = r.totalCount ?? 0;
+  } catch { data.slos = 'N/A'; }
+
+  renderOverviewCards(data);
+
+  const now = Date.now();
+  try {
+    const db = await openOverviewDB();
+    await saveOverviewSnapshot(db, baseUrl, data);
+  } catch { /* silently skip storage errors */ }
+  updateOverviewTimestamp(now);
+}
+
+function renderOverviewCards(data) {
+  document.getElementById('ov-loading').style.display = 'none';
+  document.getElementById('ov-content').style.display = 'block';
+
+  function cardHTML(card) {
+    const value    = data[card.key];
+    const safeVal  = esc(String(value));
+    let modifier   = '';
+    if (card.danger) modifier = (value === 0) ? 'safe' : 'danger';
+    const el = document.createElement('div');
+    el.className = 'ov-card ' + modifier;
+    el.innerHTML =
+      '<div class="ov-icon">' + card.icon + '</div>' +
+      '<div class="ov-count">' + safeVal + '</div>' +
+      '<div class="ov-label">' + card.label + '</div>';
+    return el;
+  }
+
+  const envGrid = document.getElementById('ov-grid-env');
+  const artGrid = document.getElementById('ov-grid-artifacts');
+  envGrid.replaceChildren(...OVERVIEW_CARDS.filter(c => c.group === 'env').map(cardHTML));
+  artGrid.replaceChildren(...OVERVIEW_CARDS.filter(c => c.group === 'artifacts').map(cardHTML));
+}
+
+function updateOverviewTimestamp(ts) {
+  const el = document.getElementById('ov-last-updated');
+  if (el) el.textContent = 'Ultimo aggiornamento: ' + relativeTime(ts);
+}
+
+async function proxyFetch(path, params) {
+  const qs = new URLSearchParams({ path });
+  Object.entries(params).forEach(([k, v]) => qs.set(k, v));
+  const resp = await fetch('/api/proxy?' + qs.toString());
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  return resp.json();
 }
 
 // ---- TOAST ----
